@@ -4,29 +4,60 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { createAuthClient } from '@/services/auth-client';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL?.trim() ?? '';
+const client = createAuthClient(API_URL || 'http://127.0.0.1:3000');
 
 export default function CreateAccountScreen() {
   const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [created, setCreated] = useState(false);
+
+  const submit = async () => {
+    setError('');
+    if (!name.trim() || !email.trim() || password.length < 12) {
+      setError('Add your name, a valid email, and a password with at least 12 characters.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await client.register(email, password);
+      setCreated(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to create your account right now.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 28) }]} keyboardShouldPersistTaps="handled">
       <Pressable onPress={() => router.back()} style={styles.back}><ThemedText style={styles.backText}>← Back</ThemedText></Pressable>
       <View style={styles.mark}><View style={styles.markCore} /></View>
       <ThemedText type="small" themeColor="textSecondary">JOIN LINKUP</ThemedText>
-      <ThemedText style={styles.title}>Make room for real connection.</ThemedText>
-      <ThemedText themeColor="textSecondary" style={styles.description}>Create your space. We will take care of the complicated parts.</ThemedText>
+      <ThemedText style={styles.title}>{created ? 'Check your email.' : 'Make room for real connection.'}</ThemedText>
+      <ThemedText themeColor="textSecondary" style={styles.description}>
+        {created ? 'Your account is created. Verify your email before signing in.' : 'Create your space. We will take care of the complicated parts.'}
+      </ThemedText>
 
-      <View style={styles.form}>
-        <TextInput autoCapitalize="words" placeholder="Your name" placeholderTextColor="#64748b" value={name} onChangeText={setName} style={styles.input} />
-        <TextInput autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="Email address" placeholderTextColor="#64748b" value={email} onChangeText={setEmail} style={styles.input} />
-        <TextInput autoComplete="new-password" placeholder="Create a password" placeholderTextColor="#64748b" secureTextEntry value={password} onChangeText={setPassword} style={styles.input} />
-        <Pressable style={({ pressed }) => [styles.primary, pressed && styles.pressed]} onPress={() => {}}><ThemedText style={styles.primaryText}>Create account</ThemedText><ThemedText style={styles.arrow}>↗</ThemedText></Pressable>
-      </View>
+      {!created && <View style={styles.form}>
+        <TextInput autoCapitalize="words" placeholder="Your name" placeholderTextColor="#64748b" value={name} onChangeText={setName} style={styles.input} editable={!loading} />
+        <TextInput autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="Email address" placeholderTextColor="#64748b" value={email} onChangeText={setEmail} style={styles.input} editable={!loading} />
+        <TextInput autoComplete="new-password" placeholder="Create a password" placeholderTextColor="#64748b" secureTextEntry value={password} onChangeText={setPassword} style={styles.input} editable={!loading} />
+        {!!error && <ThemedText style={styles.error}>{error}</ThemedText>}
+        <Pressable style={({ pressed }) => [styles.primary, pressed && styles.pressed, loading && styles.disabled]} onPress={submit} disabled={loading}>
+          <ThemedText style={styles.primaryText}>{loading ? 'Creating…' : 'Create account'}</ThemedText>
+          <ThemedText style={styles.arrow}>↗</ThemedText>
+        </Pressable>
+      </View>}
 
-      <Pressable onPress={() => router.push('/sign-in')}><ThemedText style={styles.switchText}>Already have an account? <ThemedText style={styles.switchStrong}>Sign in</ThemedText></ThemedText></Pressable>
+      <Pressable onPress={() => router.replace('/sign-in')}><ThemedText style={styles.switchText}>{created ? 'Ready? ' : 'Already have an account? '}<ThemedText style={styles.switchStrong}>Sign in</ThemedText></ThemedText></Pressable>
     </ScrollView>
   );
 }
@@ -42,10 +73,12 @@ const styles = StyleSheet.create({
   description: { fontSize: 16, lineHeight: 24, marginBottom: 18 },
   form: { gap: 10 },
   input: { minHeight: 58, borderRadius: 17, borderWidth: 1, borderColor: '#263246', backgroundColor: '#0b101b', paddingHorizontal: 17, color: '#f8fafc', fontSize: 16 },
+  error: { color: '#fca5a5', fontSize: 14, lineHeight: 20, paddingHorizontal: 4 },
   primary: { minHeight: 58, borderRadius: 17, backgroundColor: '#f8fafc', paddingHorizontal: 19, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   primaryText: { color: '#05070d', fontSize: 16, fontWeight: '800' },
   arrow: { color: '#05070d', fontSize: 22 },
   switchText: { textAlign: 'center', color: '#94a3b8', marginTop: 16 },
   switchStrong: { color: '#e2e8f0', fontWeight: '800' },
   pressed: { opacity: 0.72 },
+  disabled: { opacity: 0.55 },
 });
