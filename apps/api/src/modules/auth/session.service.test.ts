@@ -21,6 +21,7 @@ function createRepository() {
       userId: 'user-1',
       deviceId: null,
     }),
+    revoke: async (_refreshTokenHash: string) => undefined,
   };
 }
 
@@ -48,6 +49,7 @@ describe('SessionService', () => {
         };
       },
       rotateRefreshToken: async () => ({ id: 'session-2', userId: 'user-1', deviceId: null }),
+      revoke: async (_refreshTokenHash: string) => undefined,
     };
 
     const service = new SessionService(
@@ -82,7 +84,6 @@ describe('SessionService', () => {
       ),
     ).toBe(true);
   });
-
 
   it('verifies a correctly signed access token', async () => {
     const service = new SessionService(
@@ -262,6 +263,27 @@ describe('SessionService', () => {
     );
   });
 
+  it('revokes a refresh token without passing the raw token to the repository', async () => {
+    const revoke = vi.fn().mockResolvedValue(undefined);
+    const repository = createRepository();
+    repository.revoke = revoke;
+
+    const service = new SessionService(
+      repository,
+      SECRET,
+    );
+
+    await service.revoke('refresh-token-to-revoke');
+
+    expect(revoke).toHaveBeenCalledTimes(1);
+    expect(revoke.mock.calls[0][0]).toMatch(
+      /^[a-f0-9]{64}$/,
+    );
+    expect(revoke.mock.calls[0][0]).not.toBe(
+      'refresh-token-to-revoke',
+    );
+  });
+
   it('rejects an access token secret shorter than 32 characters', () => {
     expect(
       () =>
@@ -294,6 +316,7 @@ describe('SessionService', () => {
         };
       },
       rotateRefreshToken: async () => ({ id: 'session-2', userId: 'user-1', deviceId: null }),
+      revoke: async (_refreshTokenHash: string) => undefined,
     };
 
     const service = new SessionService(
