@@ -3,9 +3,20 @@ import {
   scrypt as scryptCallback,
   timingSafeEqual,
 } from 'node:crypto';
-import { promisify } from 'node:util';
 
-const scrypt = promisify(scryptCallback);
+
+const scrypt = (
+  password: string,
+  salt: Buffer,
+  keylen: number,
+  options: { N: number; r: number; p: number; maxmem: number },
+): Promise<Buffer> =>
+  new Promise((resolve, reject) => {
+    scryptCallback(password, salt, keylen, options, (error, derivedKey) => {
+      if (error) reject(error);
+      else resolve(derivedKey);
+    });
+  });
 
 const KEY_LENGTH = 64;
 const SALT_LENGTH = 16;
