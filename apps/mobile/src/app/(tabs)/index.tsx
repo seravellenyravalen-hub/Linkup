@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -21,9 +20,7 @@ function SignalCard({ number, label, detail }: { number: string; label: string; 
     <View style={styles.signalCard}>
       <ThemedText style={styles.signalNumber}>{number}</ThemedText>
       <ThemedText style={styles.signalLabel}>{label}</ThemedText>
-      <ThemedText themeColor="textSecondary" type="small">
-        {detail}
-      </ThemedText>
+      <ThemedText themeColor="textSecondary" type="small">{detail}</ThemedText>
     </View>
   );
 }
@@ -45,17 +42,13 @@ export default function HomeScreen() {
         <ThemedText type="small" themeColor="textSecondary">01 / 04</ThemedText>
       </View>
 
-      <LinearGradient
-        colors={['#172554', '#0b1120', '#05070d']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hero}>
+      <View style={styles.hero}>
         <View style={styles.heroGlow} />
         <LinkUpMark />
         <ThemedText style={styles.eyebrow}>{onboardingCopy.eyebrow.toUpperCase()}</ThemedText>
         <ThemedText style={styles.title}>{onboardingCopy.title}</ThemedText>
         <ThemedText style={styles.description}>{onboardingCopy.description}</ThemedText>
-      </LinearGradient>
+      </View>
 
       <View style={styles.signalGrid}>
         <SignalCard number="01" label="Private" detail="Your space, your control." />
@@ -64,26 +57,16 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={onboardingCopy.primaryAction}
-          onPress={() => router.push('/create-account')}
-          style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={onboardingCopy.primaryAction} onPress={() => router.push('/create-account')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
           <ThemedText style={styles.primaryText}>{onboardingCopy.primaryAction}</ThemedText>
           <ThemedText style={styles.arrow}>↗</ThemedText>
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={onboardingCopy.secondaryAction}
-          onPress={() => router.push('/sign-in')}
-          style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={onboardingCopy.secondaryAction} onPress={() => router.push('/sign-in')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
           <ThemedText style={styles.secondaryText}>{onboardingCopy.secondaryAction}</ThemedText>
         </Pressable>
       </View>
 
-      <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>
-        Your conversations belong to you.
-      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>Your conversations belong to you.</ThemedText>
     </ScrollView>
   );
 }
@@ -95,7 +78,7 @@ const styles = StyleSheet.create({
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   brandDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#dbeafe' },
   brand: { fontSize: 13, fontWeight: '800', letterSpacing: 2.8, color: '#f8fafc' },
-  hero: { minHeight: 430, borderRadius: 34, overflow: 'hidden', padding: 28, justifyContent: 'flex-end', borderWidth: 1, borderColor: '#24304a' },
+  hero: { minHeight: 430, borderRadius: 34, overflow: 'hidden', padding: 28, justifyContent: 'flex-end', backgroundColor: '#0b1220', borderWidth: 1, borderColor: '#24304a' },
   heroGlow: { position: 'absolute', width: 230, height: 230, borderRadius: 115, backgroundColor: '#1d4ed8', opacity: 0.16, top: -80, right: -70 },
   mark: { width: 76, height: 76, marginBottom: 34, position: 'relative' },
   orbit: { position: 'absolute', borderWidth: 2, borderColor: '#dbeafe', borderRadius: 999 },
