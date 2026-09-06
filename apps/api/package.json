@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "db:migrate": "tsx src/database/migrator.ts",
+    "test": "node --env-file=.env ./node_modules/vitest/vitest.mjs",
     "test:database": "vitest run src/database/database.test.ts"
   },
   "dependencies": {
