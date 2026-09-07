@@ -7,6 +7,7 @@ import { PasswordHasher } from './password.hasher';
 import { SessionRepository } from './session.repository';
 import { SessionService } from './session.service';
 import { AuthService } from './auth.service';
+import { ResendVerificationEmailNotifier } from './verification.email.notifier';
 
 export function createAuthController() {
   const users = new PostgresAuthUserRepository(databasePool);
@@ -27,7 +28,14 @@ export function createAuthController() {
   const emailVerification = new EmailVerificationService(
     new PostgresEmailVerificationTokenRepository(databasePool),
   );
-  const service = new AuthService(users, passwords, sessions, emailVerification);
+  const verificationEmail = new ResendVerificationEmailNotifier();
+  const service = new AuthService(
+    users,
+    passwords,
+    sessions,
+    emailVerification,
+    verificationEmail,
+  );
 
   return new AuthController(service);
 }
