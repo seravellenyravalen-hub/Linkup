@@ -1,76 +1,77 @@
-# LinkUp Web + PWA Foundation Implementation Plan
+# LinkUp Public Website + PWA Experience Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship the first official LinkUp web/PWA client and a durable contact/report delivery foundation.
+**Goal:** Build the official LinkUp public website as a premium product showcase and installation gateway, with a coherent product vision that will later describe the main LinkUp app.
 
-**Architecture:** Vite + React web client with a service worker and manifest. Existing Node HTTP API gains a contact module backed by PostgreSQL and a server-side email adapter using a provider API such as Resend. Release metadata is explicit and later becomes the control surface for the LinkUp AI release agent.
+**Architecture:** A Vite + React single-page public product site with hash-based product sections, a PWA install shell, static legal/search assets, and a Firebase Hosting build target. The website presents the planned LinkUp ecosystem without pretending future native-app features are already available.
 
-**Tech Stack:** React, TypeScript, Vite, Web App Manifest, Service Worker, Node HTTP, PostgreSQL, provider HTTP API.
+**Tech Stack:** React, TypeScript, Vite, Web App Manifest, Service Worker, Firebase Hosting.
 
-**Spec:** `docs/superpowers/specs/2026-09-07-linkup-web-pwa-foundation.md`
+**Spec:** `docs/superpowers/specs/2026-09-07-linkup-web-pwa-hosting-design.md`
 
 ## Global Constraints
 
-- Keep secrets server-side; never put provider API keys in `apps/web`.
-- Admin report destination is configured by `CONTACT_ADMIN_EMAIL`; the supplied destination is `seravellenyravalen@gmail.com`.
-- Web updates must use normal PWA/service-worker mechanisms.
-- Native Android updates must remain user-confirmed or store-managed.
-- Preserve LinkUp's original premium visual identity; do not copy another product's UI.
+- Use only original LinkUp branding/assets; do not copy WhatsApp or TikTok artwork, logos, or UI.
+- The website is the public acquisition/showcase layer; the full native LinkUp app is a later phase.
+- Keep future capabilities clearly labeled as planned/visionary until implemented.
+- Keep secrets out of the web client.
+- Web installation must use standard browser/PWA mechanisms.
+- Preserve the existing email-verification and contact API integration.
+- Official target URL is `https://linkup.web.app/` once the Firebase Hosting site is created and deployed.
 
 ---
 
-### Task 1: Web application shell
+### Task 1: Premium LinkUp product website
 
 **Files:**
-- Create: `apps/web/package.json`, `apps/web/index.html`, `apps/web/tsconfig.json`, `apps/web/vite.config.ts`, `apps/web/src/main.tsx`, `apps/web/src/App.tsx`, `apps/web/src/styles.css`
-- Create: `apps/web/public/manifest.webmanifest`, `apps/web/public/sw.js`, `apps/web/public/icons/linkup-mark.svg`
-
-- [ ] Build the responsive shell with Home, Product, Updates, Contact, Help and Install navigation.
-- [ ] Add the install prompt using `beforeinstallprompt` where supported and an iOS Add-to-Home-Screen explanation where it is not.
-- [ ] Register the service worker and expose an update-available action.
-- [ ] Verify production build with `npm run build`.
-- [ ] Commit the web shell.
-
-### Task 2: Contact/report backend
-
-**Files:**
-- Create: `database/migrations/005_contact_reports.sql`
-- Create: `apps/api/src/modules/contact/contact.repository.ts`, `contact.service.ts`, `contact.controller.ts`, `contact.test.ts`, `index.ts`
-- Modify: `apps/api/src/http/server.ts`
-
-- [ ] Add durable report storage with status and timestamps.
-- [ ] Validate email, subject and message lengths server-side.
-- [ ] Send a server-side notification through the configured email provider with Reply-To set to the reporter's email.
-- [ ] Return a stable report ID and success response.
-- [ ] Add tests for validation and provider behavior.
-- [ ] Commit the contact subsystem.
-
-### Task 3: Release/update center
-
-**Files:**
-- Create: `apps/web/src/release.ts`, `apps/web/public/release.json`
 - Modify: `apps/web/src/App.tsx`
+- Modify: `apps/web/src/styles.css`
+- Modify: `apps/web/index.html`
+- Modify: `apps/web/public/manifest.webmanifest`
 
-- [ ] Show current release, release notes, update channel and native update guidance.
-- [ ] Make the release manifest machine-readable for the future AI release agent.
-- [ ] Add service-worker update detection and reload flow.
-- [ ] Commit the release center.
+- [x] Create a product-led homepage with premium LinkUp branding and install CTA.
+- [x] Add product sections for Features, Messaging, Calling, Groups, Status, Discover, AI, Security and Download.
+- [x] Add original CSS product previews for chat, moments and discovery rather than third-party imagery.
+- [x] Keep the website distinct from WhatsApp while matching the completeness expected from a mature communication-product website.
 
-### Task 4: Firebase Hosting readiness
+### Task 2: Search and public-information foundation
 
 **Files:**
-- Create: `firebase.json`, `.firebaserc.example`, `apps/web/.env.example`
-- Modify: `apps/web/package.json`
+- Modify: `apps/web/public/robots.txt`
+- Modify: `apps/web/public/sitemap.xml`
+- Modify: `apps/web/public/privacy.html`
+- Modify: `apps/web/public/terms.html`
 
-- [ ] Configure SPA fallback to `apps/web/dist` without embedding credentials.
-- [ ] Document the single Firebase deployment command and required project selection.
-- [ ] Verify the generated `dist` contains the manifest and service worker.
-- [ ] Commit hosting configuration.
+- [x] Point crawlers to the official LinkUp sitemap.
+- [x] Replace placeholder sitemap URL with `https://linkup.web.app/`.
+- [x] Polish public privacy and terms pages without claiming unimplemented production practices.
+- [x] Add canonical/Open Graph/Twitter metadata to the homepage.
 
-### Task 5: Verification
+### Task 3: Automated web verification
 
-- [ ] Run API tests for the contact module and HTTP router.
-- [ ] Run web typecheck/build.
-- [ ] Inspect the Git diff for secrets and incorrect public endpoints.
-- [ ] Only report completion after the verification output is available.
+**Files:**
+- Create: `.github/workflows/web-check.yml`
+
+- [x] Add a GitHub Actions web build check for the feature branch.
+- [x] Build the web app with Node 22 and verify the generated manifest, service worker, robots and sitemap artifacts.
+- [ ] Confirm the GitHub Actions run succeeds after the workflow is triggered.
+- [ ] Perform browser-level visual verification after a deployable preview is available.
+
+### Task 4: Firebase production delivery
+
+**Files:**
+- Existing: `firebase.json`, `.firebaserc.example`
+
+- [ ] Connect the repository to the user's Firebase project/site.
+- [ ] Build `apps/web` and deploy the generated `apps/web/dist` through Firebase Hosting.
+- [ ] Verify `https://linkup.web.app/` loads over HTTPS.
+- [ ] Verify installation prompt/manifest/service worker in supported browsers.
+
+### Task 5: Final verification
+
+- [ ] Run the web build successfully.
+- [ ] Inspect the final rendered site on mobile and desktop.
+- [ ] Verify navigation, install CTA, legal pages, sitemap, robots and update flow.
+- [ ] Confirm no unrelated native-app code was changed by this website phase.
+- [ ] Only report production completion after deployment evidence is available.
