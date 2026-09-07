@@ -1,5 +1,6 @@
-import { createContactController } from './modules/contact/contact.factory';
 import { createHttpServer } from './http/server';
+import { createAuthController } from './modules/auth/auth.factory';
+import { createContactController } from './modules/contact/contact.factory';
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? '0.0.0.0';
@@ -9,6 +10,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535) {
 }
 
 const server = createHttpServer({
+  authController: createAuthController(),
   contactController: createContactController(),
 });
 
