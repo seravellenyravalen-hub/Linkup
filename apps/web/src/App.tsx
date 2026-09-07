@@ -19,6 +19,7 @@ export default function App() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const [installHelp, setInstallHelp] = useState(false);
+  const [verificationState, setVerificationState] = useState<'idle' | 'verifying' | 'verified' | 'failed'>('idle');
 
   useEffect(() => {
     const onInstall = (event: Event) => {
@@ -30,6 +31,24 @@ export default function App() {
     window.addEventListener('beforeinstallprompt', onInstall);
     window.addEventListener('linkup:update-ready', onUpdate);
     void loadRelease().then(setRelease).catch(() => undefined);
+
+    const token = new URLSearchParams(window.location.search).get('token');
+    if (window.location.pathname === '/verify-email' && token) {
+      setVerificationState('verifying');
+      if (!API_URL) {
+        setVerificationState('failed');
+      } else {
+        void fetch(`${API_URL}/api/v1/auth/verify-email`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ token }),
+        }).then(async (response) => {
+          const body = await response.json() as { verified?: boolean };
+          setVerificationState(response.ok && body.verified === true ? 'verified' : 'failed');
+        }).catch(() => setVerificationState('failed'));
+      }
+    }
+
     return () => {
       window.removeEventListener('beforeinstallprompt', onInstall);
       window.removeEventListener('linkup:update-ready', onUpdate);
@@ -67,6 +86,10 @@ export default function App() {
   }
 
   const version = release?.version ?? '1.0.0';
+  if (window.location.pathname === '/verify-email') {
+    return <div className="app"><main className="page"><div className="eyebrow">LINKUP ACCOUNT</div><h1>Email<br /><em>verification.</em></h1>{verificationState === 'verifying' && <p className="lead">Verifying your LinkUp email securely…</p>}{verificationState === 'verified' && <><p className="lead">Your email is verified. Your LinkUp account is ready for sign-in.</p><button className="primary" onClick={() => { window.location.href = '/'; }}>Continue to LinkUp</button></>}{verificationState === 'failed' && <><p className="lead">This verification link is invalid, expired, or unavailable right now.</p><button className="secondary" onClick={() => { window.location.href = '/'; }}>Return to LinkUp</button></>}</main></div>;
+  }
+
   return <div className="app">
     <header className="topbar">
       <button className="brand" onClick={() => setSection('home')}><Mark /><span>LinkUp</span></button>
