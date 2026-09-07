@@ -19,8 +19,13 @@ type AuthController = {
   logout(request: Request): Response | Promise<Response>;
 };
 
+type ContactController = {
+  create(request: Request): Response | Promise<Response>;
+};
+
 type HttpServerOptions = {
   authController?: AuthController;
+  contactController?: ContactController;
 };
 
 async function readRequestBody(
@@ -69,32 +74,23 @@ export function createHttpServer(
 ) {
   const router = new Router();
 
+  router.register('GET', '/health', () =>
+    new Response(JSON.stringify({ service: 'linkup-api', status: 'ok' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }),
+  );
+
   if (options.authController) {
-    router.register(
-      'POST',
-      '/api/v1/auth/register',
-      options.authController.register,
-    );
-    router.register(
-      'POST',
-      '/api/v1/auth/verify-email',
-      options.authController.verifyEmail,
-    );
-    router.register(
-      'POST',
-      '/api/v1/auth/login',
-      options.authController.login,
-    );
-    router.register(
-      'POST',
-      '/api/v1/auth/refresh',
-      options.authController.refresh,
-    );
-    router.register(
-      'POST',
-      '/api/v1/auth/logout',
-      options.authController.logout,
-    );
+    router.register('POST', '/api/v1/auth/register', options.authController.register);
+    router.register('POST', '/api/v1/auth/verify-email', options.authController.verifyEmail);
+    router.register('POST', '/api/v1/auth/login', options.authController.login);
+    router.register('POST', '/api/v1/auth/refresh', options.authController.refresh);
+    router.register('POST', '/api/v1/auth/logout', options.authController.logout);
+  }
+
+  if (options.contactController) {
+    router.register('POST', '/api/v1/contact/reports', options.contactController.create);
   }
 
   const server = createServer(
@@ -104,15 +100,8 @@ export function createHttpServer(
     ) => {
       try {
         const host = req.headers.host ?? '127.0.0.1';
-        const url = new URL(
-          req.url ?? '/',
-          `http://${host}`,
-        );
-
-        const status = router.status(
-          req.method ?? 'GET',
-          url.pathname,
-        );
+        const url = new URL(req.url ?? '/', `http://${host}`);
+        const status = router.status(req.method ?? 'GET', url.pathname);
 
         if (status === 404) {
           res.statusCode = 404;
@@ -126,11 +115,7 @@ export function createHttpServer(
           return;
         }
 
-        const handler = router.match(
-          req.method ?? 'GET',
-          url.pathname,
-        );
-
+        const handler = router.match(req.method ?? 'GET', url.pathname);
         if (!handler) {
           res.statusCode = 404;
           res.end();
@@ -142,13 +127,9 @@ export function createHttpServer(
 
         if (
           body &&
-          !contentType
-            .toLowerCase()
-            .startsWith('application/json')
+          !contentType.toLowerCase().startsWith('application/json')
         ) {
-          throw new HttpRequestError(
-            'JSON request body required',
-          );
+          throw new HttpRequestError('JSON request body required');
         }
 
         const request = new Request(url, {
@@ -158,24 +139,14 @@ export function createHttpServer(
         });
 
         const response = await handler(request);
-
         res.statusCode = response.status;
-
-        response.headers.forEach((value, key) => {
-          res.setHeader(key, value);
-        });
-
+        response.headers.forEach((value, key) => res.setHeader(key, value));
         const responseBody = await response.arrayBuffer();
         res.end(Buffer.from(responseBody));
       } catch (error) {
         const response = errorResponse(error);
-
         res.statusCode = response.status;
-
-        response.headers.forEach((value, key) => {
-          res.setHeader(key, value);
-        });
-
+        response.headers.forEach((value, key) => res.setHeader(key, value));
         const body = await response.arrayBuffer();
         res.end(Buffer.from(body));
       }
@@ -184,59 +155,37 @@ export function createHttpServer(
 
   return {
     router,
+    start(port = 3000, host = '127.0.0.1') {
+      return new Promise<{ port: number }>((resolve, reject) => {
+        const onError = (error: Error) => {
+          server.off('listening', onListening);
+          reject(error);
+        };
 
-    start(
-      port = 3000,
-      host = '127.0.0.1',
-    ) {
-      return new Promise<{ port: number }>(
-        (resolve, reject) => {
-          const onError = (error: Error) => {
-            server.off('listening', onListening);
-            reject(error);
-          };
+        const onListening = () => {
+          server.off('error', onError);
+          const address = server.address();
+          if (!address || typeof address === 'string') {
+            reject(new Error('Unable to determine server address'));
+            return;
+          }
+          resolve({ port: address.port });
+        };
 
-          const onListening = () => {
-            server.off('error', onError);
-
-            const address = server.address();
-
-            if (
-              !address ||
-              typeof address === 'string'
-            ) {
-              reject(
-                new Error(
-                  'Unable to determine server address',
-                ),
-              );
-              return;
-            }
-
-            resolve({ port: address.port });
-          };
-
-          server.once('error', onError);
-          server.once('listening', onListening);
-          server.listen(port, host);
-        },
-      );
+        server.once('error', onError);
+        server.once('listening', onListening);
+        server.listen(port, host);
+      });
     },
-
     stop() {
       return new Promise<void>((resolve, reject) => {
         if (!server.listening) {
           resolve();
           return;
         }
-
         server.close((error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-
-          resolve();
+          if (error) reject(error);
+          else resolve();
         });
       });
     },
