@@ -1,0 +1,11 @@
+{
+  "name": "LinkUp",
+  "short_name": "LinkUp",
+  "description": "The official LinkUp web experience.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#061015",
+  "theme_color": "#071018",
+  "icons": [{"src":"/icons/linkup-mark.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
