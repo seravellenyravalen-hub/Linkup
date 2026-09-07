@@ -7,9 +7,15 @@ async function registerLinkUpServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
   const registration = await navigator.serviceWorker.register('/sw.js');
+  let reloading = false;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
 
   const notifyUpdate = () => {
-    navigator.serviceWorker.controller?.postMessage({ type: 'LINKUP_UPDATE_READY' });
     window.dispatchEvent(new Event('linkup:update-ready'));
   };
 
