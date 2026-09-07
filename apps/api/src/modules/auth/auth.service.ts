@@ -42,6 +42,10 @@ export interface SessionService {
   revoke(refreshToken: string): Promise<void>;
 }
 
+export interface VerificationEmailNotifier {
+  send(input: { email: string; token: string }): Promise<void>;
+}
+
 const normalizeEmail = (email: string) =>
   email.trim().toLowerCase();
 
@@ -51,6 +55,7 @@ export class AuthService {
     private readonly passwords: PasswordHasher,
     private readonly sessions: SessionService,
     private readonly emailVerification: EmailVerificationService,
+    private readonly verificationEmail: VerificationEmailNotifier,
   ) {}
 
   async register(email: string, password: string) {
@@ -81,7 +86,11 @@ export class AuthService {
       passwordHash,
     });
 
-    await this.emailVerification.create(user.id);
+    const verification = await this.emailVerification.create(user.id);
+    await this.verificationEmail.send({
+      email: user.email,
+      token: verification.token,
+    });
 
     return user;
   }
