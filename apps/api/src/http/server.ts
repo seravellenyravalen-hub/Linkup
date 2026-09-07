@@ -3,13 +3,14 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http';
-import { Router } from './router';
 import {
   errorResponse,
   HttpRequestError,
 } from './http.errors';
+import { Router } from './router';
 
 const MAX_BODY_BYTES = 64 * 1024;
+const ALLOWED_ORIGIN = process.env.LINKUP_WEB_ORIGIN?.trim() ?? '';
 
 type AuthController = {
   register(request: Request): Response | Promise<Response>;
@@ -49,10 +50,7 @@ async function readRequestBody(
   let totalBytes = 0;
 
   for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk)
-      ? chunk
-      : Buffer.from(chunk);
-
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     totalBytes += buffer.length;
 
     if (totalBytes > MAX_BODY_BYTES) {
@@ -62,16 +60,11 @@ async function readRequestBody(
     chunks.push(buffer);
   }
 
-  if (totalBytes === 0) {
-    return undefined;
-  }
-
+  if (totalBytes === 0) return undefined;
   return Buffer.concat(chunks);
 }
 
-export function createHttpServer(
-  options: HttpServerOptions = {},
-) {
+export function createHttpServer(options: HttpServerOptions = {}) {
   const router = new Router();
 
   router.register('GET', '/health', () =>
@@ -93,65 +86,77 @@ export function createHttpServer(
     router.register('POST', '/api/v1/contact/reports', options.contactController.create);
   }
 
-  const server = createServer(
-    async (
-      req: IncomingMessage,
-      res: ServerResponse,
-    ) => {
-      try {
-        const host = req.headers.host ?? '127.0.0.1';
-        const url = new URL(req.url ?? '/', `http://${host}`);
-        const status = router.status(req.method ?? 'GET', url.pathname);
+  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    const origin = req.headers.origin;
+    if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) {
+      res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.setHeader('Access-Control-Max-Age', '86400');
+    }
 
-        if (status === 404) {
-          res.statusCode = 404;
-          res.end();
-          return;
-        }
-
-        if (status === 405) {
-          res.statusCode = 405;
-          res.end();
-          return;
-        }
-
-        const handler = router.match(req.method ?? 'GET', url.pathname);
-        if (!handler) {
-          res.statusCode = 404;
-          res.end();
-          return;
-        }
-
-        const body = await readRequestBody(req);
-        const contentType = req.headers['content-type'] ?? '';
-
-        if (
-          body &&
-          !contentType.toLowerCase().startsWith('application/json')
-        ) {
-          throw new HttpRequestError('JSON request body required');
-        }
-
-        const request = new Request(url, {
-          method: req.method ?? 'GET',
-          headers: req.headers as Record<string, string>,
-          body,
-        });
-
-        const response = await handler(request);
-        res.statusCode = response.status;
-        response.headers.forEach((value, key) => res.setHeader(key, value));
-        const responseBody = await response.arrayBuffer();
-        res.end(Buffer.from(responseBody));
-      } catch (error) {
-        const response = errorResponse(error);
-        res.statusCode = response.status;
-        response.headers.forEach((value, key) => res.setHeader(key, value));
-        const body = await response.arrayBuffer();
-        res.end(Buffer.from(body));
+    if (req.method === 'OPTIONS') {
+      if (!ALLOWED_ORIGIN || origin !== ALLOWED_ORIGIN) {
+        res.statusCode = 403;
+        res.end();
+        return;
       }
-    },
-  );
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
+    try {
+      const host = req.headers.host ?? '127.0.0.1';
+      const url = new URL(req.url ?? '/', `http://${host}`);
+      const status = router.status(req.method ?? 'GET', url.pathname);
+
+      if (status === 404) {
+        res.statusCode = 404;
+        res.end();
+        return;
+      }
+
+      if (status === 405) {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const handler = router.match(req.method ?? 'GET', url.pathname);
+      if (!handler) {
+        res.statusCode = 404;
+        res.end();
+        return;
+      }
+
+      const body = await readRequestBody(req);
+      const contentType = req.headers['content-type'] ?? '';
+
+      if (body && !contentType.toLowerCase().startsWith('application/json')) {
+        throw new HttpRequestError('JSON request body required');
+      }
+
+      const request = new Request(url, {
+        method: req.method ?? 'GET',
+        headers: req.headers as Record<string, string>,
+        body,
+      });
+
+      const response = await handler(request);
+      res.statusCode = response.status;
+      response.headers.forEach((value, key) => res.setHeader(key, value));
+      const responseBody = await response.arrayBuffer();
+      res.end(Buffer.from(responseBody));
+    } catch (error) {
+      const response = errorResponse(error);
+      res.statusCode = response.status;
+      response.headers.forEach((value, key) => res.setHeader(key, value));
+      const body = await response.arrayBuffer();
+      res.end(Buffer.from(body));
+    }
+  });
 
   return {
     router,
