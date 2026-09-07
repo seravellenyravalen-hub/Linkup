@@ -2,14 +2,28 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { loadRelease, type LinkUpRelease } from './release';
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
-type Section = 'home' | 'updates' | 'contact' | 'help' | 'legal';
+type Section = 'home' | 'features' | 'messaging' | 'calling' | 'groups' | 'status' | 'discover' | 'ai' | 'security' | 'download' | 'updates' | 'contact' | 'help';
 
-type InstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-};
+type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }> };
 
-function Mark() { return <div className="mark" aria-label="LinkUp">LU</div>; }
+const nav: Array<[Section, string]> = [
+  ['features', 'Features'], ['messaging', 'Messaging'], ['calling', 'Calling'], ['groups', 'Groups'], ['status', 'Status'], ['discover', 'Discover'], ['ai', 'AI'], ['security', 'Security'],
+];
+
+function Mark({ small = false }: { small?: boolean }) { return <img className={`brandMark${small ? ' small' : ''}`} src="/icons/linkup-mark.svg" alt="LinkUp" />; }
+
+function PhonePreview({ variant = 'chat' }: { variant?: 'chat' | 'moments' | 'discover' }) {
+  return <div className={`phonePreview ${variant}`} aria-label="LinkUp product preview">
+    <div className="phoneTop"><span>9:41</span><span>● ●</span></div>
+    {variant === 'chat' && <><div className="previewHeader"><Mark small /><div><strong>LinkUp</strong><span>online now</span></div><b>•••</b></div><div className="chatDay">TODAY</div><div className="bubble received">Hey! Are we still on for tonight?<small>18:42</small></div><div className="bubble sent">Absolutely. See you soon ✦<small>18:43 ✓✓</small></div><div className="photoCard city"><span>LINKUP MOMENT</span></div><div className="bubble received">This view is unreal.</div><div className="composer"><span>Message</span><b>＋</b><b>➤</b></div></>}
+    {variant === 'moments' && <><div className="previewHeader"><div><strong>Moments</strong><span>Share your world</span></div><b>＋</b></div><div className="storyStack"><div className="storyPhoto one"><span>YOUR MOMENT</span></div><div className="storyPhoto two"><span>FRIENDS</span></div><div className="storyPhoto three"><span>CREATORS</span></div></div><div className="momentCaption"><strong>Life happens between the messages.</strong><span>Share a moment. Keep it close.</span></div></>}
+    {variant === 'discover' && <><div className="previewHeader"><div><strong>Discover</strong><span>Find what moves you</span></div><b>⌕</b></div><div className="discoverGrid"><div className="discoverTile a"><span>01</span></div><div className="discoverTile b"><span>02</span></div><div className="discoverTile c"><span>03</span></div><div className="discoverTile d"><span>04</span></div></div><div className="discoverText"><strong>Made for what's next.</strong><span>People, ideas, creators and communities.</span></div></>}
+  </div>;
+}
+
+function FeaturePage({ section, eyebrow, title, text, preview }: { section: Section; eyebrow: string; title: string; text: string; preview: 'chat' | 'moments' | 'discover' }) {
+  return <section className="featurePage"><div className="featureCopy"><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p className="lead">{text}</p><div className="featurePoints"><span>Designed around people</span><span>Built to evolve</span><span>LinkUp original</span></div><button className="primary" onClick={() => { window.location.hash = 'download'; }}>Get LinkUp</button></div><PhonePreview variant={preview} /></section>;
+}
 
 export default function App() {
   const [section, setSection] = useState<Section>('home');
@@ -22,88 +36,52 @@ export default function App() {
   const [verificationState, setVerificationState] = useState<'idle' | 'verifying' | 'verified' | 'failed'>('idle');
 
   useEffect(() => {
-    const onInstall = (event: Event) => {
-      event.preventDefault();
-      setInstallEvent(event as InstallPromptEvent);
-      setInstallHelp(false);
-    };
+    const onInstall = (event: Event) => { event.preventDefault(); setInstallEvent(event as InstallPromptEvent); setInstallHelp(false); };
     const onUpdate = () => setUpdateReady(true);
-    window.addEventListener('beforeinstallprompt', onInstall);
-    window.addEventListener('linkup:update-ready', onUpdate);
+    const onHash = () => { const value = window.location.hash.replace('#', '') as Section; if (value) setSection(value); };
+    window.addEventListener('beforeinstallprompt', onInstall); window.addEventListener('linkup:update-ready', onUpdate); window.addEventListener('hashchange', onHash); onHash();
     void loadRelease().then(setRelease).catch(() => undefined);
-
     const token = new URLSearchParams(window.location.search).get('token');
     if (window.location.pathname === '/verify-email' && token) {
       setVerificationState('verifying');
-      if (!API_URL) {
-        setVerificationState('failed');
-      } else {
-        void fetch(`${API_URL}/api/v1/auth/verify-email`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ token }),
-        }).then(async (response) => {
-          const body = await response.json() as { verified?: boolean };
-          setVerificationState(response.ok && body.verified === true ? 'verified' : 'failed');
-        }).catch(() => setVerificationState('failed'));
-      }
+      if (!API_URL) setVerificationState('failed');
+      else void fetch(`${API_URL}/api/v1/auth/verify-email`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }) }).then(async response => { const body = await response.json() as { verified?: boolean }; setVerificationState(response.ok && body.verified === true ? 'verified' : 'failed'); }).catch(() => setVerificationState('failed'));
     }
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onInstall);
-      window.removeEventListener('linkup:update-ready', onUpdate);
-    };
+    return () => { window.removeEventListener('beforeinstallprompt', onInstall); window.removeEventListener('linkup:update-ready', onUpdate); window.removeEventListener('hashchange', onHash); };
   }, []);
 
-  async function install() {
-    if (!installEvent) { setInstallHelp(true); return; }
-    await installEvent.prompt();
-    const choice = await installEvent.userChoice;
-    if (choice.outcome === 'accepted') setInstallHelp(false);
-    setInstallEvent(undefined);
-  }
+  async function install() { if (!installEvent) { setInstallHelp(true); return; } await installEvent.prompt(); const choice = await installEvent.userChoice; if (choice.outcome === 'accepted') setInstallHelp(false); setInstallEvent(undefined); }
+  async function updateNow() { const registration = await navigator.serviceWorker?.getRegistration('/'); if (registration?.waiting) { registration.waiting.postMessage({ type: 'SKIP_WAITING' }); return; } await registration?.update(); window.location.reload(); }
+  function go(next: Section) { setSection(next); window.history.replaceState(null, '', next === 'home' ? '/' : `#${next}`); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  async function submitReport(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(''); setSent(false); const form = event.currentTarget; const payload = Object.fromEntries(new FormData(form).entries()); if (!API_URL) { setError('Contact service is not connected yet. The report form is ready for the LinkUp API.'); return; } try { const response = await fetch(`${API_URL}/api/v1/contact/reports`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }); if (!response.ok) throw new Error(); setSent(true); form.reset(); } catch { setError('We could not send the report right now. Please try again.'); } }
 
-  async function updateNow() {
-    const registration = await navigator.serviceWorker?.getRegistration('/');
-    if (registration?.waiting) {
-      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      return;
-    }
-    await registration?.update();
-    window.location.reload();
-  }
-
-  async function submitReport(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setError(''); setSent(false);
-    const form = event.currentTarget;
-    const payload = Object.fromEntries(new FormData(form).entries());
-    if (!API_URL) { setError('Contact service is not connected yet. The report form is ready for the LinkUp API.'); return; }
-    try {
-      const response = await fetch(`${API_URL}/api/v1/contact/reports`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!response.ok) throw new Error('Unable to submit report');
-      setSent(true); form.reset();
-    } catch { setError('We could not send the report right now. Please try again.'); }
-  }
+  if (window.location.pathname === '/verify-email') return <div className="app"><main className="centerPage"><Mark /><div className="eyebrow">LINKUP ACCOUNT</div><h1>Email <em>verification.</em></h1>{verificationState === 'verifying' && <p className="lead">Verifying your LinkUp email securely…</p>}{verificationState === 'verified' && <><p className="lead">Your email is verified. Your LinkUp account is ready.</p><button className="primary" onClick={() => { window.location.href = '/'; }}>Continue to LinkUp</button></>}{verificationState === 'failed' && <><p className="lead">This verification link is invalid, expired, or unavailable.</p><button className="secondary" onClick={() => { window.location.href = '/'; }}>Return to LinkUp</button></>}</main></div>;
 
   const version = release?.version ?? '1.0.0';
-  if (window.location.pathname === '/verify-email') {
-    return <div className="app"><main className="page"><div className="eyebrow">LINKUP ACCOUNT</div><h1>Email<br /><em>verification.</em></h1>{verificationState === 'verifying' && <p className="lead">Verifying your LinkUp email securely…</p>}{verificationState === 'verified' && <><p className="lead">Your email is verified. Your LinkUp account is ready for sign-in.</p><button className="primary" onClick={() => { window.location.href = '/'; }}>Continue to LinkUp</button></>}{verificationState === 'failed' && <><p className="lead">This verification link is invalid, expired, or unavailable right now.</p><button className="secondary" onClick={() => { window.location.href = '/'; }}>Return to LinkUp</button></>}</main></div>;
-  }
-
   return <div className="app">
-    <header className="topbar">
-      <button className="brand" onClick={() => setSection('home')}><Mark /><span>LinkUp</span></button>
-      <nav aria-label="Primary navigation">{(['home', 'updates', 'contact', 'help'] as Section[]).map(item => <button key={item} className={section === item ? 'active' : ''} onClick={() => setSection(item)}>{item[0].toUpperCase() + item.slice(1)}</button>)}</nav>
-      <button className="install" onClick={() => void install()}>{installEvent ? 'Install LinkUp' : 'Get LinkUp'}</button>
-    </header>
-    {updateReady && <div className="updatebar" role="status">A fresh LinkUp web release is ready. <button onClick={() => void updateNow()}>Update now</button></div>}
-    {installHelp && <div className="updatebar" role="status">Automatic installation is unavailable here. Open your browser menu and choose <strong>Install app</strong> or <strong>Add to Home Screen</strong>.</div>}
+    <header className="topbar"><button className="brand" onClick={() => go('home')}><Mark /><span>LinkUp</span></button><nav aria-label="Primary navigation">{nav.slice(0, 5).map(([key, label]) => <button key={key} className={section === key ? 'active' : ''} onClick={() => go(key)}>{label}</button>)}<button onClick={() => go('features')}>More</button></nav><button className="install" onClick={() => void install()}>{installEvent ? 'Install LinkUp' : 'Get LinkUp'}</button></header>
+    {updateReady && <div className="updatebar" role="status">A fresh LinkUp release is ready. <button onClick={() => void updateNow()}>Update now</button></div>}
+    {installHelp && <div className="updatebar" role="status">Automatic installation isn't available in this browser yet. Use your browser menu and choose <strong>Install app</strong> or <strong>Add to Home Screen</strong>.</div>}
     <main>
-      {section === 'home' && <><section className="hero"><div className="eyebrow">THE OFFICIAL LINKUP HOME</div><h1>Connection, redesigned<br /><em>for people.</em></h1><p>LinkUp brings messages, people, communities and the next generation of social connection into one evolving experience.</p><div className="heroActions"><button className="primary" onClick={() => void install()}>Install LinkUp</button><button className="secondary" onClick={() => setSection('updates')}>Explore updates</button></div><div className="orb"><Mark /><span>Always evolving.</span></div></section><section className="cards"><article><span>01</span><h2>Messages</h2><p>Private conversations and communities with a familiar flow and an original LinkUp identity.</p></article><article><span>02</span><h2>Social</h2><p>Built to grow into richer discovery, short-form content and creator experiences.</p></article><article><span>03</span><h2>Intelligence</h2><p>A future AI layer will help operate LinkUp, from everyday actions to release publishing.</p></article></section></>}
-      {section === 'updates' && <section className="page"><div className="eyebrow">RELEASE CENTER</div><h1>Every release,<br /><em>landed cleanly.</em></h1><p className="lead">The official update stream for LinkUp web and mobile. New releases can carry notes, availability and update guidance in one machine-readable source.</p><div className="release"><div><span className="pill">CURRENT</span><h2>LinkUp {version}</h2><p>{release?.notes.join(' · ') ?? 'Web/PWA foundation · official home · install experience · release center · contact foundation.'}</p></div><strong>{version}</strong></div><p className="muted">Web updates are delivered through the PWA service worker. Native Android updates remain user-confirmed or store-managed.</p></section>}
-      {section === 'contact' && <section className="page"><div className="eyebrow">CONTACT & REPORTS</div><h1>Tell the LinkUp<br /><em>team.</em></h1><p className="lead">Report a problem, request help, or send feedback. Include your email so the team can reply.</p><form onSubmit={submitReport} className="report"><div className="row"><label>Name<input name="name" placeholder="Your name" maxLength={100} /></label><label>Email<input name="email" type="email" required placeholder="you@example.com" maxLength={254} /></label></div><label>Category<select name="category"><option>Bug report</option><option>Account & access</option><option>Safety</option><option>Feedback</option><option>Other</option></select></label><label>Subject<input name="subject" required placeholder="What happened?" maxLength={160} /></label><label>Message<textarea name="message" required placeholder="Tell us what you need help with..." maxLength={5000} /></label><button className="primary" type="submit">Send report</button>{sent && <div className="success" role="status">Report received. The LinkUp team can now reply to the email you provided.</div>}{error && <div className="error" role="alert">{error}</div>}</form></section>}
-      {section === 'help' && <section className="page"><div className="eyebrow">LINKUP HELP</div><h1>Simple answers.<br /><em>Clear direction.</em></h1><div className="faq"><details open><summary>How do I install LinkUp?</summary><p>On supported browsers, use the Install LinkUp button. On iPhone/iPad, use your browser's Share menu and choose Add to Home Screen.</p></details><details><summary>How do updates work?</summary><p>The PWA checks for a newer service-worker version. When one is ready, LinkUp presents an update action instead of silently changing the current session.</p></details><details><summary>How do I contact LinkUp?</summary><p>Use Contact & Reports. Your email is included as Reply-To so the team can respond directly.</p></details></div></section>}
+      {section === 'home' && <>
+        <section className="hero"><div className="heroGlow" /><div className="heroCopy"><div className="eyebrow">THE OFFICIAL LINKUP HOME</div><h1>Stay close to the people who <em>matter.</em></h1><p>Messages, calls, moments, groups and what's next — brought together in one original experience built around people.</p><div className="heroActions"><button className="primary" onClick={() => void install()}>Install LinkUp</button><button className="secondary" onClick={() => go('features')}>Explore LinkUp</button></div><div className="trustLine"><span><b>01</b> Private by design</span><span><b>02</b> Built to evolve</span><span><b>03</b> Made for everyone</span></div></div><PhonePreview /></section>
+        <section className="introBand"><div><div className="eyebrow">ONE PLACE. MANY WAYS TO CONNECT.</div><h2>More than messages.<br /><em>A place to belong.</em></h2></div><p>LinkUp starts with conversation and grows with the people using it. The website introduces the vision; the LinkUp app will bring each experience to life.</p></section>
+        <section className="featureGrid"><article className="featureCard dark"><span>01 / MESSAGING</span><h3>Conversations that feel alive.</h3><p>Chat, photos, videos, voice messages, reactions, replies, files and the little details that make communication feel human.</p><button onClick={() => go('messaging')}>Explore messaging →</button><PhonePreview /></article><article className="featureCard light"><span>02 / MOMENTS</span><h3>Share the moment, not just the message.</h3><p>Status and future social experiences give people a way to share what is happening now.</p><button onClick={() => go('status')}>Explore moments →</button><div className="miniVisual momentsVisual"><i /><i /><i /></div></article><article className="featureCard accent"><span>03 / WHAT'S NEXT</span><h3>A communication platform built to keep evolving.</h3><p>Calls, communities, discovery, creators and an intelligent LinkUp layer can grow around the core experience.</p><button onClick={() => go('features')}>See the vision →</button><div className="orbitVisual"><Mark /></div></article></section>
+        <section className="downloadBanner"><div><div className="eyebrow">READY WHEN YOU ARE</div><h2>Bring LinkUp<br /><em>with you.</em></h2><p>Install the official LinkUp experience directly from this site on supported devices.</p></div><button className="primary large" onClick={() => void install()}>Install LinkUp</button></section>
+      </>}
+      {section === 'features' && <section className="featureHub"><div className="eyebrow">LINKUP FEATURES</div><h1>Everything you need to <em>stay connected.</em></h1><p className="lead">A familiar foundation for communication, with room for a much bigger future.</p><div className="featureList">{[['messaging','Messaging','Private conversations, media, voice notes and expressive replies.'],['calling','Calling','Voice and video experiences for one-to-one and group conversations.'],['groups','Groups','Bring friends, family, teams and communities together.'],['status','Status','Share moments through photos, videos, text and more.'],['discover','Discover','A future space for people, creators, ideas and short-form content.'],['ai','LinkUp AI','An intelligent layer designed to help you get more done across LinkUp.'],['security','Security & Privacy','Account protection, privacy controls and security designed into the experience.']].map(([key, title, copy]) => <button key={key} className="featureRow" onClick={() => go(key as Section)}><span>{title}</span><p>{copy}</p><b>→</b></button>)}</div></section>}
+      {section === 'messaging' && <FeaturePage section={section} eyebrow="01 / MESSAGING" title={<>Conversations made <em>personal.</em></>} text="LinkUp's core starts with simple, expressive conversations: text, reactions, replies, media, files and voice — designed to feel immediate without feeling generic." preview="chat" />}
+      {section === 'calling' && <section className="splitPage"><div><div className="eyebrow">02 / CALLING</div><h1>Hear them.<br /><em>See them.</em></h1><p className="lead">Voice and video calling are part of the LinkUp vision, from quick one-to-one calls to richer group conversations.</p><div className="callVisual"><div className="avatarRing"><Mark /></div><span>LinkUp call</span><strong>Connecting you to the people that matter.</strong></div></div><div className="callCards"><article><b>VOICE</b><h3>Clear, simple calls.</h3><p>Start a conversation without leaving LinkUp.</p></article><article><b>VIDEO</b><h3>Feel closer.</h3><p>Future-ready video calling designed for real life.</p></article><article><b>GROUPS</b><h3>More people, one moment.</h3><p>Bring your circles together when it matters.</p></article></div></section>}
+      {section === 'groups' && <section className="splitPage"><div><div className="eyebrow">03 / GROUPS</div><h1>Your people.<br /><em>Together.</em></h1><p className="lead">Groups should make planning, sharing and staying connected feel effortless — whether it's family, friends, classmates or a community.</p></div><div className="groupMock"><div className="groupHeader"><Mark small /><div><strong>Weekend crew</strong><span>8 members</span></div></div><div className="groupMessages"><span>Maria shared 4 photos</span><span>Alex reacted ✦ to “Dinner?”</span><span>You: Let's meet at 7.</span><span className="typing">Someone is typing…</span></div><button className="primary">Explore group conversations</button></div></section>}
+      {section === 'status' && <FeaturePage section={section} eyebrow="04 / STATUS & MOMENTS" title={<>Share life as it <em>happens.</em></>} text="Moments give your people a window into your day. LinkUp will make sharing photos, video, text and voice feel natural, expressive and personal." preview="moments" />}
+      {section === 'discover' && <FeaturePage section={section} eyebrow="05 / DISCOVER" title={<>Find what's <em>next.</em></>} text="A future discovery layer can bring creators, communities, short-form content and ideas together without losing the human connection at the center of LinkUp." preview="discover" />}
+      {section === 'ai' && <section className="aiPage"><div className="aiHalo"><Mark /></div><div><div className="eyebrow">06 / LINKUP AI</div><h1>Intelligence that <em>works with you.</em></h1><p className="lead">The future LinkUp AI layer is designed to understand natural language and help users navigate, organize and accomplish tasks across the experience.</p><div className="aiExamples"><span>“Find the photo from last weekend.”</span><span>“Remind me to reply tonight.”</span><span>“Start a group with my family.”</span><span>“Show me my unread messages.”</span></div></div></section>}
+      {section === 'security' && <section className="securityPage"><div className="eyebrow">07 / SECURITY & PRIVACY</div><h1>Your connection deserves <em>trust.</em></h1><p className="lead">LinkUp is being designed with privacy, account protection and user control as first-class product concerns.</p><div className="securityGrid"><article><b>ACCOUNT</b><h3>Phone verification</h3><p>The future main app will use phone-number verification with additional recovery and security options.</p></article><article><b>CONTROL</b><h3>Privacy settings</h3><p>Clear controls for profiles, contacts, notifications, blocked accounts and sessions.</p></article><article><b>TRANSPARENCY</b><h3>Built honestly</h3><p>The website describes the direction of LinkUp; features are only presented as available when the product actually supports them.</p></article></div></section>}
+      {section === 'download' && <section className="downloadPage"><div className="eyebrow">GET LINKUP</div><h1>One tap away from <em>what's next.</em></h1><p className="lead">Install the official LinkUp web experience now. The native LinkUp app will follow as the product is built.</p><button className="primary large" onClick={() => void install()}>Install LinkUp</button><div className="deviceCards"><article><span>WEB / PWA</span><h3>Install from your browser.</h3><p>Supported browsers can add LinkUp directly to your home screen.</p></article><article><span>ANDROID / IOS</span><h3>The main app is coming.</h3><p>The full LinkUp app will be built after the official web presence is complete.</p></article></div></section>}
+      {section === 'updates' && <section className="page"><div className="eyebrow">RELEASE CENTER</div><h1>Every release,<br /><em>landed cleanly.</em></h1><p className="lead">The official update stream for LinkUp web and mobile.</p><div className="release"><div><span className="pill">CURRENT</span><h2>LinkUp {version}</h2><p>{release?.notes.join(' · ') ?? 'Official web foundation and install experience.'}</p></div><strong>{version}</strong></div></section>}
+      {section === 'contact' && <section className="page"><div className="eyebrow">CONTACT LINKUP</div><h1>Talk to the<br /><em>team.</em></h1><p className="lead">Report a problem, request help or share feedback.</p><form onSubmit={submitReport} className="report"><div className="row"><label>Name<input name="name" placeholder="Your name" maxLength={100} /></label><label>Email<input name="email" type="email" required placeholder="you@example.com" maxLength={254} /></label></div><label>Category<select name="category"><option>Bug report</option><option>Account & access</option><option>Safety</option><option>Feedback</option><option>Other</option></select></label><label>Subject<input name="subject" required placeholder="What happened?" maxLength={160} /></label><label>Message<textarea name="message" required placeholder="Tell us what you need help with..." maxLength={5000} /></label><button className="primary" type="submit">Send report</button>{sent && <div className="success" role="status">Report received.</div>}{error && <div className="error" role="alert">{error}</div>}</form></section>}
+      {section === 'help' && <section className="page"><div className="eyebrow">LINKUP HELP</div><h1>Simple answers.<br /><em>Clear direction.</em></h1><div className="faq"><details open><summary>How do I install LinkUp?</summary><p>Use Install LinkUp on a supported browser. On iPhone/iPad, use your browser's Share menu and choose Add to Home Screen.</p></details><details><summary>Is the full app available yet?</summary><p>The public website comes first. The full native LinkUp app will be built next.</p></details><details><summary>What will LinkUp support?</summary><p>The product vision includes messaging, calls, groups, status, discovery, AI and more. Availability will always depend on the released product.</p></details></div></section>}
     </main>
-    <footer><div><Mark /><strong>LinkUp</strong></div><span>Official web home · built to evolve.</span><div className="footerLinks"><button onClick={() => setSection('contact')}>Contact team</button><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a></div></footer>
+    <footer><div className="footerBrand"><Mark small /><strong>LinkUp</strong></div><span>Connect. Share. Belong.</span><div className="footerLinks"><button onClick={() => go('features')}>Features</button><button onClick={() => go('download')}>Install</button><button onClick={() => go('contact')}>Contact</button><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a></div></footer>
   </div>;
 }
