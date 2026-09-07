@@ -38,9 +38,3 @@ self.addEventListener('fetch', event => {
 self.addEventListener('message', event => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
-
-self.addEventListener('controllerchange', () => {
-  void self.clients.matchAll({ type: 'window' }).then(clients => {
-    clients.forEach(client => client.postMessage({ type: 'LINKUP_UPDATE_READY' }));
-  });
-});
