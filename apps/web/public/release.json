@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "channel": "stable",
+  "publishedAt": "2026-09-07T00:00:00.000Z",
+  "web": { "version": "1.0.0", "update": "service-worker" },
+  "android": { "version": "1.0.0", "update": "user-confirmed" },
+  "notes": [
+    "Official LinkUp web home launched.",
+    "Installable PWA foundation added.",
+    "Release center and contact/report flow added."
+  ]
+}
